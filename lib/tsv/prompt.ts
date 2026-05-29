@@ -59,21 +59,30 @@ Be specific to this apartment's actual numbers. Do not use generic real-estate l
 }
 
 export function buildFloorPlanAnalysisPrompt(): string {
-  return `You are an expert architectural analyst. Analyze this residential floor plan image and extract the following data as JSON:
+  return `You are an expert architectural analyst specialising in Indian residential floor plans. Analyse this floor plan image carefully.
 
-{
-  "bedrooms": <number>,
-  "bathrooms": <number>,
-  "estimatedCarpetAreaSqFt": <number — estimate based on visual scale and room proportions>,
-  "passageAreaPercent": <number 0-100 — estimate % of total area consumed by passages, corridors, lobby>,
-  "roomsRectangular": <boolean — are the majority of habitable rooms roughly rectangular?>,
-  "dryBalconyPresent": <boolean>,
-  "storagePresent": <boolean — visible storage room, loft, or utility area>,
-  "kitchenShape": "straight|L_shape|U_shape|island|galley",
-  "externalWindowsCount": <number — count of windows/openings on external walls>,
-  "crossVentilation": "opposite_walls|adjacent_walls|single_sided",
-  "notes": "<any unusual features, dead corners, awkward polygonal rooms, oversized lobbies>"
-}
+CRITICAL READING PRIORITY — check for these in order:
+1. If a RERA / area statement table is printed on the plan, read the exact RERA Carpet Area in sq.ft from it — use that as estimatedCarpetAreaSqFt, NOT a visual guess.
+2. If a room schedule / area table is printed (listing room names with sq.ft or sq.m sizes), calculate passageAreaPercent as: (passage/corridor row area ÷ RERA carpet area) × 100.
+3. Read the key plan compass (N arrow) to extract the primary facing direction.
+4. Read the plan header for unit identifier (Wing, Flat number, floor range).
+5. Only estimate visually if no printed table is present.
 
-Be precise. If you cannot determine a value from the image, use your best estimate and note the uncertainty in the notes field.`;
+Extract the following fields:
+
+- bedrooms: count of bedroom rooms (not toilets, not study)
+- bathrooms: count of attached toilets (NOT powder/guest toilet)
+- estimatedCarpetAreaSqFt: RERA carpet area from table if visible, otherwise visual estimate
+- passageAreaPercent: passage + corridor as % of carpet area (0–100); calculate from table if available
+- roomsRectangular: true if most habitable rooms are roughly rectangular
+- dryBalconyPresent: true if utility/dry balcony/service area present
+- storagePresent: true if dedicated storage room, loft, or large utility present
+- kitchenShape: straight / L_shape / U_shape / island / galley
+- externalWindowsCount: count of window or ventilation openings on external walls
+- crossVentilation: opposite_walls (windows on facing walls) / adjacent_walls / single_sided
+- notes: include — (a) exact RERA carpet area and breakdown if table present; (b) individual room dimensions from schedule if printed; (c) facing direction from key plan compass; (d) unit identifier from header; (e) any dead corners, irregular shapes, or oversized passages
+- facingFromPlan: primary facing direction read from key plan compass — "North", "South", "East", "West", "NE", "NW", "SE", or "SW". Omit if compass not legible.
+- projectIdentifier: unit identifier from plan header (e.g. "Wing A Flat 01, 9th–33rd Floor"). Omit if not visible.
+
+Be precise. Prefer numbers from printed tables over visual estimates. Record all room dimensions you can read in the notes field.`;
 }

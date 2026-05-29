@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
-import type { TSVInput, TSVReport } from "@/lib/tsv/types";
+import type { TSVInput, TSVReport, Facing } from "@/lib/tsv/types";
 import {
   computeCompleteness,
   computeTSVCore,
@@ -51,6 +51,15 @@ export async function POST(req: NextRequest) {
       const provider = new TSVClaudeProvider(apiKey);
       const analysis = await provider.analyzeFloorPlan(input.floorPlanImage);
       // Merge analysis into input (do not overwrite user-provided values)
+      // Map facing string from plan to Facing type
+      const FACING_MAP: Record<string, Facing> = {
+        north: "North", south: "South", east: "East", west: "West",
+        ne: "NE", nw: "NW", se: "SE", sw: "SW",
+      };
+      const facingFromPlan = analysis.facingFromPlan
+        ? FACING_MAP[analysis.facingFromPlan.toLowerCase()] ?? undefined
+        : undefined;
+
       input = {
         ...input,
         bedrooms: input.bedrooms ?? analysis.bedrooms,
@@ -62,9 +71,10 @@ export async function POST(req: NextRequest) {
         storagePresent: input.storagePresent ?? analysis.storagePresent,
         externalWindowsCount: input.externalWindowsCount ?? analysis.externalWindowsCount,
         crossVentilation: input.crossVentilation ?? analysis.crossVentilation,
+        facing: input.facing ?? facingFromPlan,
       };
       if (analysis.notes) {
-        planObservations = analysis.notes.split(/[.·•]/).map((s) => s.trim()).filter((s) => s.length > 10);
+        planObservations = analysis.notes.split(/[.·•\n]/).map((s) => s.trim()).filter((s) => s.length > 10);
       }
     } catch {
       // Vision analysis failed — continue with whatever data we have

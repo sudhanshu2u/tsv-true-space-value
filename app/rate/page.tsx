@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import type { TSVInput, CityKey, UnitType, Facing, ViewType, ViewAngle, VastuDirection, AmenityKey, FireSafetyFeature, ParkingType, PowerBackup, WaterSupply, CrossVentilation } from "@/lib/tsv/types";
@@ -108,6 +108,73 @@ export default function RatePage() {
 
   const [form, setForm] = useState<Partial<TSVInput>>({});
   const set = useCallback(<K extends keyof TSVInput>(k: K, v: TSVInput[K]) => setForm((p) => ({ ...p, [k]: v })), []);
+
+  const [enriching, setEnriching] = useState(false);
+  const [enrichNote, setEnrichNote] = useState<string | null>(null);
+  const [enrichConfidence, setEnrichConfidence] = useState<"high" | "medium" | "low" | null>(null);
+
+  // Auto-lookup project details from web when project name + city are both filled
+  useEffect(() => {
+    if (!form.projectName || form.projectName.length < 5 || !form.city) return;
+    setEnrichNote(null);
+    const timer = setTimeout(async () => {
+      setEnriching(true);
+      try {
+        const res = await fetch("/api/enrich", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ projectName: form.projectName, city: form.city, locality: form.locality }),
+        });
+        const data = await res.json() as {
+          found: boolean; confidence?: "high" | "medium" | "low"; summary?: string;
+          askingPricePerSqFt?: number; totalFloors?: number; totalUnitsInProject?: number;
+          liftCount?: number; amenities?: string[]; fireSafetyFeatures?: string[];
+          parkingType?: string; powerBackup?: string; waterSupply?: string;
+          evReady?: boolean; developerName?: string;
+        };
+        if (data.found) {
+          setEnrichConfidence(data.confidence ?? "low");
+          setForm((prev) => ({
+            ...prev,
+            askingPricePerSqFt: prev.askingPricePerSqFt ?? data.askingPricePerSqFt,
+            totalFloors: prev.totalFloors ?? data.totalFloors,
+            totalUnitsInProject: prev.totalUnitsInProject ?? data.totalUnitsInProject,
+            liftCount: prev.liftCount ?? data.liftCount,
+            amenities: prev.amenities?.length ? prev.amenities : (data.amenities as AmenityKey[] | undefined),
+            fireSafetyFeatures: prev.fireSafetyFeatures?.length
+              ? prev.fireSafetyFeatures
+              : (data.fireSafetyFeatures as FireSafetyFeature[] | undefined),
+            parkingType: prev.parkingType ?? (data.parkingType as ParkingType | undefined),
+            powerBackup: prev.powerBackup ?? (data.powerBackup as PowerBackup | undefined),
+            waterSupply: prev.waterSupply ?? (data.waterSupply as WaterSupply | undefined),
+            evReady: prev.evReady ?? data.evReady,
+            developerName: prev.developerName ?? data.developerName,
+          }));
+          const filled: string[] = [];
+          if (data.askingPricePerSqFt) filled.push(`₹${data.askingPricePerSqFt.toLocaleString()}/sqft`);
+          if (data.totalFloors) filled.push(`${data.totalFloors} floors`);
+          if (data.amenities?.length) filled.push(`${data.amenities.length} amenities`);
+          if (data.developerName) filled.push(data.developerName);
+          setEnrichNote(
+            data.summary
+              ? data.summary
+              : filled.length
+              ? `Pre-filled: ${filled.join(" · ")}`
+              : "Project found — some details pre-filled",
+          );
+        } else {
+          setEnrichNote("No online data found — enter details manually below.");
+          setEnrichConfidence(null);
+        }
+      } catch {
+        setEnrichNote(null);
+      } finally {
+        setEnriching(false);
+      }
+    }, 1200);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.projectName, form.city, form.locality]);
 
   const handleFile = async (file: File) => {
     if (!file.type.startsWith("image/")) { setError("Please upload an image file."); return; }
@@ -264,6 +331,15 @@ export default function RatePage() {
             </Field>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Locality / Area" hint="Helps online project lookup">
+              <Input value={form.locality ?? ""} onChange={(v) => set("locality", v)} placeholder="e.g. Sewri, Worli" />
+            </Field>
+            <Field label="Developer Name">
+              <Input value={form.developerName ?? ""} onChange={(v) => set("developerName", v)} placeholder="e.g. Rustomjee" />
+            </Field>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <Field label="Carpet Area (sq ft)">
               <Input type="number" value={form.carpetArea ?? ""} onChange={(v) => set("carpetArea", Number(v))} placeholder="e.g. 900" min={100} max={15000} />
@@ -276,6 +352,26 @@ export default function RatePage() {
             </Field>
           </div>
         </div>
+
+        {/* Web enrichment status */}
+        {(enriching || enrichNote) && (
+          <div className={`rounded-xl px-4 py-3 mb-4 flex items-start gap-2 text-sm ${
+            enriching ? "bg-blue-50 border border-blue-100 text-blue-700"
+            : enrichConfidence === "low" ? "bg-amber-50 border border-amber-100 text-amber-800"
+            : "bg-green-50 border border-green-100 text-green-800"
+          }`}>
+            {enriching
+              ? <><span className="w-4 h-4 border-2 border-blue-400/40 border-t-blue-600 rounded-full animate-spin shrink-0 mt-0.5" /> Looking up project online…</>
+              : <><span className="shrink-0 mt-0.5">{enrichConfidence === "low" ? "⚠" : "✓"}</span>
+                  <span>
+                    {enrichNote}
+                    {enrichConfidence === "low" && <span className="block text-xs mt-0.5 opacity-70">From AI training data — verify price and amenities independently.</span>}
+                  </span>
+                  <button onClick={() => setEnrichNote(null)} className="ml-auto text-xs opacity-50 hover:opacity-100">✕</button>
+                </>
+            }
+          </div>
+        )}
 
         {/* Expandable enhancement sections */}
         <div className="space-y-2 mb-6">

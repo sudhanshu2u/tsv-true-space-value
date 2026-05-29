@@ -324,11 +324,11 @@ export interface TSVIndexEntry {
   ts: string;
 }
 
-// Floor plan analysis returned by Gemini Vision
+// Floor plan analysis returned by Claude Vision
 export interface FloorPlanAnalysis {
   bedrooms: number;
   bathrooms: number;
-  estimatedCarpetAreaSqFt: number;
+  estimatedCarpetAreaSqFt: number; // RERA value if table present, visual estimate otherwise
   passageAreaPercent: number;
   roomsRectangular: boolean;
   dryBalconyPresent: boolean;
@@ -337,4 +337,26 @@ export interface FloorPlanAnalysis {
   externalWindowsCount: number;
   crossVentilation: CrossVentilation;
   notes: string;
+  // Extended — populated when printed text is readable on the plan
+  facingFromPlan?: string;      // e.g. "North", "NE" — from key plan compass
+  projectIdentifier?: string;  // e.g. "Wing A Flat 01" from plan header
+}
+
+// Web-enriched project data from search
+export interface WebProjectData {
+  askingPricePerSqFt?: number;
+  totalFloors?: number;
+  totalUnitsInProject?: number;
+  liftCount?: number;
+  amenities?: AmenityKey[];
+  fireSafetyFeatures?: FireSafetyFeature[];
+  parkingType?: ParkingType;
+  powerBackup?: PowerBackup;
+  waterSupply?: WaterSupply;
+  evReady?: boolean;
+  developerName?: string;
+  reraNumber?: string;
+  confidence: "high" | "medium" | "low";
+  sources: string[];
+  summary?: string;
 }
