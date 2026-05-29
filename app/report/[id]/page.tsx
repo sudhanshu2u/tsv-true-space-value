@@ -106,7 +106,10 @@ export default function ReportPage() {
 
   useEffect(() => {
     fetch(`/api/reports?id=${id}`)
-      .then((r) => r.json())
+      .then(async (res) => {
+        if (!res.ok) return null;
+        return res.json() as Promise<TSVReport>;
+      })
       .then(setReport)
       .catch(() => {})
       .finally(() => setLoading(false));

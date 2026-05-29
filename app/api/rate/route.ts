@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
     ts: new Date().toISOString(),
   };
 
-  saveTSVReport(report).catch(() => {});
+  await saveTSVReport(report).catch(() => {});
 
   return NextResponse.json(report);
 }
