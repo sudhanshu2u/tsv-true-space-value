@@ -48,7 +48,7 @@ export default function TSVLanding() {
     if (!search.trim()) { setSearchResults([]); return; }
     const timer = setTimeout(() => {
       setSearching(true);
-      fetch(`/api/tsv/reports?search=${encodeURIComponent(search)}&limit=8`)
+      fetch(`/api/reports?search=${encodeURIComponent(search)}&limit=8`)
         .then((r) => r.json())
         .then((d) => setSearchResults(d.entries ?? []))
         .catch(() => {})

@@ -105,7 +105,7 @@ export default function ReportPage() {
   const [analystMode, setAnalystMode] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/tsv/reports?id=${id}`)
+    fetch(`/api/reports?id=${id}`)
       .then((r) => r.json())
       .then(setReport)
       .catch(() => {})
