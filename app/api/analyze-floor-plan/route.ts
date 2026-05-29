@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { TSVGeminiProvider } from "@/lib/tsv/gemini-provider";
+import { TSVClaudeProvider } from "@/lib/tsv/claude-provider";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
-    return NextResponse.json({ error: "Gemini API key not configured." }, { status: 503 });
+    return NextResponse.json({ error: "Anthropic API key not configured." }, { status: 503 });
   }
 
   let body: { imageDataUrl: string };
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const provider = new TSVGeminiProvider(apiKey);
+    const provider = new TSVClaudeProvider(apiKey);
     const analysis = await provider.analyzeFloorPlan(body.imageDataUrl);
     return NextResponse.json(analysis);
   } catch (err) {

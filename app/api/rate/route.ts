@@ -12,7 +12,7 @@ import {
   deriveStrengths,
   deriveWeaknesses,
 } from "@/lib/tsv/scoring";
-import { TSVGeminiProvider } from "@/lib/tsv/gemini-provider";
+import { TSVClaudeProvider } from "@/lib/tsv/claude-provider";
 import { saveTSVReport } from "@/lib/tsv/storage";
 
 export const runtime = "nodejs";
@@ -42,13 +42,13 @@ export async function POST(req: NextRequest) {
 
   const completeness = computeCompleteness(input);
 
-  // If floor plan image provided but space fields empty, run Gemini Vision first
-  const apiKey = process.env.GEMINI_API_KEY;
+  // If floor plan image provided but space fields empty, run vision analysis first
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   let planObservations: string[] = [];
 
   if (input.floorPlanImage && !input.carpetArea && apiKey) {
     try {
-      const provider = new TSVGeminiProvider(apiKey);
+      const provider = new TSVClaudeProvider(apiKey);
       const analysis = await provider.analyzeFloorPlan(input.floorPlanImage);
       // Merge analysis into input (do not overwrite user-provided values)
       input = {
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   const { label: verdictLabel, color: verdictColor } = getVerdictLabel(composite);
   const isPlanOnly = !completeness.hasBuilding && !completeness.hasPrice;
 
-  // Gemini narrative — only generate if we have enough data (at least plan data)
+  // AI narrative — only generate if we have enough data (at least plan data)
   let narrative = "";
   let geminiStrengths: string[] = [];
   let geminiWeaknesses: string[] = [];
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
 
   if (apiKey && core.availableDimensionCount >= 2) {
     try {
-      const provider = new TSVGeminiProvider(apiKey);
+      const provider = new TSVClaudeProvider(apiKey);
       const result = await provider.generateNarrative(input, core, building, value, composite);
       narrative = result.narrative;
       geminiStrengths = result.strengths;
